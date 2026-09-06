@@ -1,4 +1,4 @@
-# Neko-Wizard
+# Neko-Wizard for Musl
 
 Neko-Wizard is a straightforward wizard application and driver installer designed specifically for Void Linux.
 
