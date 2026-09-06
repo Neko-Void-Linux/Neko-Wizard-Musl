@@ -55,11 +55,6 @@ static AppInfo apps[] = {
     {"Printer Support", "print.png", INSTALL_APP("printer"), GROUP_DRIVERS, FALSE, FALSE},
     {"AMD Drivers", "amd.png", INSTALL_APP("amd"), GROUP_DRIVERS, FALSE, FALSE},
     {"Intel Drivers", "intel.png", INSTALL_APP("intel"), GROUP_DRIVERS, FALSE, FALSE},
-    {"Nvidia Open", "nvidia.png", INSTALL_APP("nvidia-open"), GROUP_DRIVERS, FALSE, FALSE},
-    {"Nvidia Proprietary Lastest", "nvidia.png", INSTALL_APP("nvidia-latest"), GROUP_DRIVERS, FALSE, FALSE},
-    {"Nvidia Proprietary 580", "nvidia.png", INSTALL_APP("nvidia-580"), GROUP_DRIVERS, FALSE, FALSE},
-    {"Nvidia Proprietary 470", "nvidia.png", INSTALL_APP("nvidia-470"), GROUP_DRIVERS, FALSE, FALSE},
-    {"Nvidia Proprietary 390", "nvidia.png", INSTALL_APP("nvidia-390"), GROUP_DRIVERS, FALSE, FALSE},
 
     //SECURITY SECTION
     {"GUFW (FIREWALL)", "firewall.png", INSTALL_APP("gufw"), GROUP_SECURITY, FALSE, FALSE}
