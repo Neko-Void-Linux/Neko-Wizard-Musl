@@ -5,7 +5,7 @@
  * (download/install.sh in this repo). Same pattern used by the drivers:
  * download it and run it with the app-id of what we want to install.
  * It stays up to date after every push to main, no rebuild needed. */
-#define NEKO_SCRIPT_URL "https://raw.githubusercontent.com/Neko-Void-Linux/Neko-Wizard/main/download/install.sh"
+#define NEKO_SCRIPT_URL "https://raw.githubusercontent.com/Neko-Void-Linux/Neko-Wizard-Musl/main/download/install.sh"
 #define INSTALL_APP(id) "curl -fsSL -o /tmp/neko-install.sh " NEKO_SCRIPT_URL " && bash /tmp/neko-install.sh " id
 
 static AppInfo apps[] = {
