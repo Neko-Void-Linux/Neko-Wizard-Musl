@@ -60,8 +60,14 @@ static AppInfo apps[] = {
     {"GUFW (FIREWALL)", "firewall.png", INSTALL_APP("gufw"), GROUP_SECURITY, FALSE, FALSE}
 };
 
-int neko_apps_count(void) { return sizeof(apps) / sizeof(apps[0]); }
-AppInfo *neko_apps_list(void) { return apps; }
+GList *get_all_apps(void) {
+    GList *list = NULL;
+    int num_apps = sizeof(apps) / sizeof(apps[0]);
+    for (int i = 0; i < num_apps; i++) {
+        list = g_list_append(list, &apps[i]);
+    }
+    return list;
+}
 
 gchar *get_resource_path(const char *rel_path) {
     gchar *exe_path = g_file_read_link("/proc/self/exe", NULL);
@@ -76,19 +82,36 @@ gchar *get_resource_path(const char *rel_path) {
 
     gchar *path1 = g_build_filename(exe_dir, rel_path, NULL);
     gchar *path2 = g_build_filename(exe_dir, "..", rel_path, NULL);
+    gchar *path3 = g_build_filename("/usr/share/neko-store", rel_path, NULL);
+    gchar *path4 = g_build_filename("/opt/neko-store", rel_path, NULL);
 
     g_free(exe_dir);
 
     if (g_file_test(path1, G_FILE_TEST_EXISTS)) {
-        g_free(path2);
+        g_free(path2); g_free(path3); g_free(path4);
         return path1;
     }
     if (g_file_test(path2, G_FILE_TEST_EXISTS)) {
-        g_free(path1);
+        g_free(path1); g_free(path3); g_free(path4);
         return path2;
     }
+    if (g_file_test(path3, G_FILE_TEST_EXISTS)) {
+        g_free(path1); g_free(path2); g_free(path4);
+        return path3;
+    }
+    if (g_file_test(path4, G_FILE_TEST_EXISTS)) {
+        g_free(path1); g_free(path2); g_free(path3);
+        return path4;
+    }
 
-    g_free(path2);
+    g_free(path2); g_free(path3); g_free(path4);
+
+    gchar *path5 = g_build_filename("/home/javierc/Documentos/server/dev/Neko Store", rel_path, NULL);
+    if (g_file_test(path5, G_FILE_TEST_EXISTS)) {
+        g_free(path1);
+        return path5;
+    }
+    g_free(path5);
 
     return path1;
 }

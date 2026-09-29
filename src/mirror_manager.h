@@ -11,7 +11,6 @@ typedef struct {
     int tier;
 } MirrorInfo;
 
-int neko_mirrors_count(void);
-MirrorInfo *neko_mirrors_list(void);
+GList *get_all_mirrors(void);
 
 #endif
