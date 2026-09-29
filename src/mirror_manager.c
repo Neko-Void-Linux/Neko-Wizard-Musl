@@ -47,5 +47,12 @@ static MirrorInfo mirrors[] = {
     {"mirror.linux.ec/voidlinux", "https://mirror.linux.ec/voidlinux/", "South and Central America", "Quito, Ecuador", 2},
 };
 
-int neko_mirrors_count(void) { return sizeof(mirrors) / sizeof(mirrors[0]); }
-MirrorInfo *neko_mirrors_list(void) { return mirrors; }
+static int num_mirrors = sizeof(mirrors) / sizeof(mirrors[0]);
+
+GList *get_all_mirrors(void) {
+    GList *list = NULL;
+    for (int i = 0; i < num_mirrors; i++) {
+        list = g_list_append(list, &mirrors[i]);
+    }
+    return list;
+}
