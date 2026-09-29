@@ -25,13 +25,6 @@ set -u
 log() { printf '[neko] %s\n' "$*"; }
 die() { printf '[neko] ERROR: %s\n' "$*" >&2; exit 1; }
 
-# Run a whole script under a single pkexec session. Flatpaks are installed
-# system-wide, so every flatpak command inside the script reuses the same
-# privileges and the polkit password prompt appears only once.
-as_root() {
-    pkexec bash -euc "$(cat)"
-}
-
 usage() {
     printf 'Neko-Wizard installer\n\n'
     printf 'Usage: bash %s <app-id>\n' "$0"
@@ -47,8 +40,41 @@ list_apps() {
         krita gimp inkscape \
         spotify vesktop waterfox brave zerotierone telegram vivaldi chromium \
         onlyoffice kate libreoffice \
-        bluetooth printer amd intel nvidia-open nvidia-latest nvidia-580 nvidia-470 nvidia-390 \
+        bluetooth printer amd intel \
         gufw
+}
+
+# ------------------------------------------------------------------------------
+# arxy backend (Arch compat layer) for gaming apps with no musl build.
+# Official Arch packages install as root (pkexec, GUI prompt); AUR -bin ones
+# MUST run as the invoking user (makepkg forbids root, arxy elevates itself
+# via sudo/doas for its root part).
+# ------------------------------------------------------------------------------
+
+ensure_arxy() {
+    if ! command -v arxy >/dev/null 2>&1; then
+        log "Installing arxy (Arch compat layer, one time)..."
+        pkexec xbps-install -Sy arxy || die "Could not install arxy (needs z-repo-musl)"
+    fi
+    if [[ ! -x /var/lib/arxy/root/usr/bin/pacman ]]; then
+        log "Setting up arxy image (one-time download)..."
+        pkexec arxy setup || die "arxy setup failed"
+    fi
+    # [multilib] for lib32-* deps (same sed arxy uses; idempotent).
+    pkexec bash -c 'grep -q "^\[multilib\]" /var/lib/arxy/root/etc/pacman.conf 2>/dev/null || sed -i -E "/^#\[multilib\]/,/^#?Include/s/^#//" /var/lib/arxy/root/etc/pacman.conf' \
+        || die "Could not enable multilib in arxy"
+}
+
+arxy_official() { # <pkg...> : Arch official repos (needs root)
+    ensure_arxy
+    log "Installing $* via arxy (Arch official)..."
+    pkexec arxy install "$@" || die "arxy install failed"
+}
+
+arxy_aur() { # <pkg> : AUR -bin, runs as user (arxy elevates itself)
+    ensure_arxy
+    log "Installing $1 via arxy (AUR)..."
+    arxy install --aur "$1" || die "arxy AUR install failed (needs working sudo/doas for the user)"
 }
 
 # ------------------------------------------------------------------------------
@@ -56,77 +82,48 @@ list_apps() {
 # ------------------------------------------------------------------------------
 
 install_steam() {
-    log "Installing Steam (void-repo-nonfree + multilib + 32bit libs)..."
-    pkexec xbps-install -Sy void-repo-nonfree void-repo-multilib void-repo-multilib-nonfree \
-        && pkexec xbps-install -Sy steam-udev-rules MangoHud gamescope libGL-32bit libpulseaudio-32bit libtxc_dxtn-32bit mesa mesa-dri mesa-vulkan-radeon vulkan-loader mesa-32bit  libgcc-32bit libstdc++-32bit libdrm-32bit libglvnd-32bit steam-bin
+    # mesa/vulkan-icd-loader are optdepends of steam: explicit for GL + 32-bit.
+    arxy_official steam mesa lib32-mesa vulkan-icd-loader lib32-vulkan-icd-loader
 }
 
 install_portproton() {
-    log "Installing PortProton..."
-    pkexec xbps-install -Sy portproton
+    arxy_aur portproton
 }
 
 install_heroic() {
-    log "Installing Heroic Games Launcher..."
-    pkexec xbps-install -Sy heroic-games
+    arxy_aur heroic-games-launcher-bin
 }
 
 install_lutris() {
-    log "Installing Lutris..."
-    pkexec xbps-install -Sy lutris
+    # wine is optdepend of lutris: explicit, without it nothing runs.
+    arxy_official lutris wine
 }
 
 install_hytale() {
-    log "Installing Hytale..."
-    pkexec xbps-install -Sy hytale-installer
+    arxy_aur hytale-launcher-bin
 }
 
 install_trinity() {
-    log "Installing Trinity Launcher (Flatpak)..."
-    flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-    flatpak remote-add --if-not-exists --user trinity \
-    https://huggingface.co/datasets/ccoffee20/flatpak/resolve/main/com.trench.trinity.launcher.flatpakrepo
-    flatpak install --user flathub org.kde.Platform//6.10 io.qt.qtwebengine.BaseApp//6.10 -y
-    flatpak install --user trinity com.trench.trinity.launcher -y
+    # Native package from z-repo-musl (no flatpak on musl builds).
+    log "Installing Trinity Launcher..."
+    pkexec xbps-install -Sy trinity-launcher-ap
 }
 
 install_prismlauncher() {
-    log "Installing PrismLauncher..."
-    pkexec xbps-install -Sy PrismLauncher
+    arxy_official prismlauncher
 }
 
 install_pineconemc() {
-    # PineconeMC ships as an AppImage; AppImageLauncher Lite integrates it into
-    # the desktop menu. Both are user-level (no pkexec needed).
-    local dir="$HOME/apps"
-    local launcher="$dir/appimagelauncher-lite.AppImage"
-    local pinecone="$dir/PineconeMC-Linux-x86_64.AppImage"
-
-    log "Downloading AppImageLauncher..."
-    mkdir -p "$dir" || die "Could not create $dir"
-    curl -fsSL -o "$launcher" \
-        "https://github.com/TheAssassin/AppImageLauncher/releases/download/v3.0.0-beta-3/appimagelauncher-lite-3.0.0-beta-2-gha287-x86_64.AppImage" \
-        || die "Failed to download AppImageLauncher"
-    chmod +x "$launcher"
-
-    log "Downloading PineconeMC..."
-    curl -fsSL -o "$pinecone" \
-        "https://github.com/ElyPrismLauncher/Launcher/releases/download/11.0.3/PineconeMC-Linux-x86_64.AppImage" \
-        || die "Failed to download PineconeMC"
-    chmod +x "$pinecone"
-
-    log "Integrating PineconeMC into the desktop (AppImageLauncher)..."
-    "$launcher" cli integrate "$pinecone"
+    # Ely.by fork (PineconeMC upstream); -bin build per arxy AUR policy.
+    arxy_aur elyprismlauncher-bin
 }
 
 install_protonup() {
-    log "Installing ProtonUp-Qt..."
-    pkexec xbps-install -Sy protonup-qt
+    arxy_aur protonup-qt-bin
 }
 
 install_faugus() {
-    log "Installing Faugus Launcher..."
-    pkexec xbps-install -Sy faugus-launcher
+    arxy_aur faugus-launcher-bin
 }
 
 # ------------------------------------------------------------------------------
@@ -200,9 +197,9 @@ install_inkscape() {
 # ------------------------------------------------------------------------------
 
 install_spotify() {
-    log "Installing Spotify (Flatpak)..."
-    flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-    flatpak install --user flathub com.spotify.Client -y
+    # No proprietary client on musl: native open client from official repos.
+    log "Installing Spotify client..."
+    pkexec xbps-install -Sy spotify-player
 }
 
 install_vesktop() {
@@ -306,44 +303,6 @@ install_intel() {
     pkexec xbps-install -Sy mesa-dri mesa-dri-32bit mesa-vulkan-intel mesa-vulkan-intel-32bit libva-intel-driver-irql linux-firmware-intel intel-media-driver mesa-intel-dri-32bit mesa-intel-dri
 }
 
-# Función auxiliar para descargar el repositorio de nvidia-support
-download_nvidia_support() {
-    log "Downloading NVIDIA support scripts..."
-    curl -fsSL -o /tmp/nvidia-support.tar.gz https://github.com/Neko-Void-Linux/nvidia-support/archive/refs/heads/main.tar.gz \
-        && tar -xzf /tmp/nvidia-support.tar.gz -C /tmp/
-}
-
-install_nvidia_open() {
-    download_nvidia_support
-    log "Installing NVIDIA (open kernel modules)..."
-    pkexec bash /tmp/nvidia-support-main/install.sh open
-}
-
-install_nvidia_latest() {
-    download_nvidia_support
-    log "Installing NVIDIA (proprietary, latest)..."
-    pkexec bash /tmp/nvidia-support-main/install.sh latest
-}
-
-install_nvidia_580() {
-    download_nvidia_support
-    log "Installing NVIDIA (proprietary, 580 series)..."
-    pkexec bash /tmp/nvidia-support-main/install.sh 580
-}
-
-install_nvidia_470() {
-    download_nvidia_support
-    log "Installing NVIDIA (proprietary, 470 series)..."
-    pkexec bash /tmp/nvidia-support-main/install.sh 470
-}
-
-install_nvidia_390() {
-    download_nvidia_support
-    log "Installing NVIDIA (proprietary, 390 series)..."
-    pkexec bash /tmp/nvidia-support-main/install.sh 390
-}
-
-
 # ------------------------------------------------------------------------------
 # Security
 # ------------------------------------------------------------------------------
@@ -403,11 +362,6 @@ case "$APP" in
     printer)       install_printer ;;
     amd)           install_amd ;;
     intel)         install_intel ;;
-    nvidia-open)   install_nvidia_open ;;
-    nvidia-latest) install_nvidia_latest ;;
-    nvidia-580)    install_nvidia_580 ;;
-    nvidia-470)    install_nvidia_470 ;;
-    nvidia-390)    install_nvidia_390 ;;
 
     gufw)          install_gufw ;;
 

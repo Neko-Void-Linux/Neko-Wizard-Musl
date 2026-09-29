@@ -22,7 +22,8 @@ typedef struct {
     gboolean install_success;
 } AppInfo;
 
-GList *get_all_apps(void);
+int neko_apps_count(void);
+AppInfo *neko_apps_list(void);
 gchar *get_resource_path(const char *rel_path);
 
 #endif

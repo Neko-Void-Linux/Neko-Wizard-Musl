@@ -20,10 +20,6 @@ void neko_app_card_set_selected(NekoAppCard *self, gboolean selected) {
     }
 }
 
-gboolean neko_app_card_get_selected(NekoAppCard *self) {
-    return self->info->selected;
-}
-
 static void on_card_click(GtkGestureClick *gesture, int n_press, double x, double y, gpointer user_data) {
     NekoAppCard *self = NEKO_APP_CARD(user_data);
     neko_app_card_set_selected(self, !self->info->selected);

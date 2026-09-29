@@ -3,7 +3,6 @@ project('neko-store', 'c',
   default_options : ['warning_level=2'])
 
 gtkdep = dependency('gtk4')
-x11dep = dependency('x11', required: false)
 
 src = [
   'src/main.c',
@@ -16,6 +15,6 @@ src = [
 
 executable('neko-store',
   src,
-  dependencies : [gtkdep, x11dep],
+  dependencies : [gtkdep],
   install : true
 )
